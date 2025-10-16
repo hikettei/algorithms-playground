@@ -22,7 +22,6 @@ class BPlusTree {
    - values are assigned only if the node is LeafNode.
    - LeafNodes never have children.
    - parent = Bucket_{lvl_1}
-   - next/prev
   */
   struct Node {
     explicit Node(bool is_leaf) : leaf(is_leaf), parent(nullptr) {}
@@ -97,7 +96,7 @@ private:
 
         new_node->keys.assign(node->keys.begin() + static_cast<std::ptrdiff_t>(mid + 1), node->keys.end());
         node->keys.resize(mid);
-
+        // split and distribute children
         for (std::size_t i = mid + 1; i < node->children.size(); ++i) {
             std::unique_ptr<Node> child = std::move(node->children[i]);
             child->parent = new_node.get();
