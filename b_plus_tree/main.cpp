@@ -87,6 +87,7 @@ private:
         leaf->keys.resize(mid);
         leaf->values.resize(mid);
         insertIntoParent(leaf, new_leaf->keys.front(), std::move(new_leaf));
+        updateParentKeyForChild(leaf);
     }
 
     void splitInternal(Node* node) {
