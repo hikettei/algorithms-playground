@@ -134,7 +134,7 @@ private:
             splitInternal(parent);
         }
     }
-
+    // note(hikettei): why is it needed??
     void updateParentKeyForChild(Node* child) {
         if (!child->parent) return;
         Node* parent = child->parent;
