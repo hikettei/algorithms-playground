@@ -244,11 +244,83 @@ void testInterleavedInsertFind() {
     }
 }
 
+std::string makeRandomWord(std::mt19937& rng, std::size_t length) {
+    std::uniform_int_distribution<int> letter('a', 'z');
+    std::string word;
+    word.reserve(length);
+    for (std::size_t i = 0; i < length; ++i) {
+        word.push_back(static_cast<char>(letter(rng)));
+    }
+    return word;
+}
+
+void testHashTableTenThousandEntries() {
+    test::TestScope scope("hash_table_10k_entries");
+    constexpr std::size_t kEntries = 10'000;
+    BPlusTree<std::string, std::string, 6> tree;
+    std::unordered_map<std::string, std::string> table;
+    table.reserve(kEntries * 2);
+
+    std::vector<std::string> keys;
+    keys.reserve(kEntries);
+
+    std::mt19937 rng(0x5eed1234u);
+
+    for (std::size_t i = 0; i < kEntries; ++i) {
+        std::string key = std::string("key_") + std::to_string(i);
+        std::string value = makeRandomWord(rng, 16) + std::string("_") + std::to_string(i);
+        table.emplace(key, value);
+        tree.insert(key, value);
+        keys.push_back(std::move(key));
+    }
+
+    CHECK_EQ(table.size(), kEntries);
+
+    for (const auto& entry : table) {
+        auto from_tree = tree.find(entry.first);
+        CHECK_TRUE(from_tree.has_value());
+        CHECK_EQ(*from_tree, entry.second);
+    }
+
+    std::uniform_int_distribution<std::size_t> index_dist(0, keys.size() - 1);
+    for (int i = 0; i < 500; ++i) {
+        const std::string& key = keys[index_dist(rng)];
+        auto expected = table.find(key);
+        CHECK_TRUE(expected != table.end());
+        auto actual = tree.find(key);
+        CHECK_TRUE(actual.has_value());
+        CHECK_EQ(*actual, expected->second);
+    }
+
+    // Update a subset of keys to verify overwrite behaviour in both structures.
+    for (int i = 0; i < 1'000; ++i) {
+        const std::string& key = keys[index_dist(rng)];
+        std::string new_value = makeRandomWord(rng, 24);
+        table[key] = new_value;
+        tree.insert(key, new_value);
+    }
+
+    for (const auto& entry : table) {
+        auto from_tree = tree.find(entry.first);
+        CHECK_TRUE(from_tree.has_value());
+        CHECK_EQ(*from_tree, entry.second);
+    }
+
+    // Ensure lookups for absent keys report "not found" consistently.
+    for (int i = 0; i < 50; ++i) {
+        std::string missing_key = std::string("missing_") + std::to_string(i);
+        CHECK_TRUE(table.find(missing_key) == table.end());
+        auto result = tree.find(missing_key);
+        CHECK_FALSE(result.has_value());
+    }
+}
+
 int main() {
     testBasicInsertFind();
     testOverwriteValue();
     testSequentialBulkInsert();
     testRandomBulkInsert();
     testInterleavedInsertFind();
+    testHashTableTenThousandEntries();
     return ::test::finalize();
 }
