@@ -11,17 +11,21 @@ class BPlusTree {
   static_assert(Order >= 3, "B+Tree order must be at least 3");
   /*
     Data Structure:
-    ```
+    
+    [(Node)        ]
+    [Keys:    K1 | K2 | K3 | ... | K_maxkeys() ]
+    [Values:  V1 | V2 | V3 | ... | V_maxkeys() ] (null is assigned if the node is internal)
+    - Node has a single parent
+    - Node has children.
+    
+    The class BPlusTree constructs the following graph:
            [ Root (internal) ]
                /       \
           [ I ]         [ I ]        ← internal nodes
            / \           / \
         [L0] [L1]     [L2] [L3]      ← leaves (where leaf = true)
-        L0.next == L1, L1.next == L2, ... (as well as prev)
+        
    ```
-   - values are assigned only if the node is LeafNode.
-   - LeafNodes never have children.
-   - parent = Bucket_{lvl_1}
   */
   struct Node {
     explicit Node(bool is_leaf) : leaf(is_leaf), parent(nullptr) {}
@@ -42,8 +46,9 @@ public:
 
     auto it = std::lower_bound(leaf->keys.begin(), leaf->keys.end(), key);
     const std::size_t index = static_cast<std::size_t>(std::distance(leaf->keys.begin(), it));
-    
-    if (it != leaf->keys.end() && *it == key) { // overriding the key.
+
+    // The key is already registered, updating the value.
+    if (it != leaf->keys.end() && *it == key) {
       leaf->values[index] = value;
       return;
     }
@@ -51,6 +56,8 @@ public:
     leaf->keys.insert(it, key);
     leaf->values.insert(leaf->values.begin() + index, value);
 
+    // If it overflows, recursively split the buckets. (splitLeaf -> insertIntoParent -> splitLeaf -> ...)
+    // TODO(hikettei): splitInternal and splitLeaf are just doing the same stuff thus they should not be separated.
     if (leaf->keys.size() > maxKeys()) {
       splitLeaf(leaf);
     } else if (leaf->parent && index == 0) {
